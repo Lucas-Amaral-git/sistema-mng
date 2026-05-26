@@ -1,0 +1,26 @@
+{
+  "name": "pet-alimentacao-backend",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "migrate": "node src/migrations/001-add-user-id-and-action.js",
+    "seed": "node src/migrations/002-seed-user-data.js",
+    "devices-migrate": "node src/migrations/003-create-devices-table.js",
+    "build": "node -e \"console.log('backend pronto')\""
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mqtt": "^5.10.4",
+    "mysql2": "^3.12.0",
+    "pet-alimentacao-monorepo": "file:.."
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

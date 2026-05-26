@@ -1,0 +1,21 @@
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start --lan --port 8082",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^1.17.11",
+    "expo": "~54.0.33",
+    "expo-constants": "~18.0.10",
+    "expo-status-bar": "~3.0.9",
+    "pet-alimentacao-monorepo": "file:..",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
+  },
+  "private": true
+}

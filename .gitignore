@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+.env
+backend/node_modules
+frontend/node_modules
+frontend/dist
+mobile/node_modules
+mobile/.expo
+mobile/.expo-shared
+npm-debug.log*
+package-lock.json
