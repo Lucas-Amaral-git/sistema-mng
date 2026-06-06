@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { findUserByUsername, verifyPassword } = require('../services/authService');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'troque_este_seguro';
 const JWT_EXPIRES = '7d';
 
 async function login(req, res, next) {
@@ -24,7 +23,11 @@ async function login(req, res, next) {
       return res.status(401).json({ mensagem: 'Credenciais invalidas' });
     }
 
-    const token = jwt.sign({ sub: user.id, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+    const token = jwt.sign(
+      { sub: user.id, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: JWT_EXPIRES }
+    );
 
     res.json({ token });
   } catch (erro) {

@@ -9,8 +9,27 @@ function obterTopicoPeso() {
   return process.env.MQTT_TOPIC_PESO || 'pet/+/peso';
 }
 
-function obterTopicoComando() {
-  return process.env.MQTT_TOPIC_COMANDO || 'pet/+/comando';
+function obterTemplateTopicoComando() {
+  return process.env.MQTT_TOPIC_COMANDO || 'pet/{device_id}/comando';
+}
+
+function construirTopicoComando(deviceId) {
+  const template = obterTemplateTopicoComando();
+
+  if (template.includes('{device_id}')) {
+    return template.replace('{device_id}', deviceId);
+  }
+
+  if (template.includes('<device_id>')) {
+    return template.replace('<device_id>', deviceId);
+  }
+
+  // Se vier wildcard ou topico fixo legado, forca formato concreto por dispositivo.
+  if (template.includes('+') || template.includes('#') || !template.includes('/')) {
+    return `pet/${deviceId}/comando`;
+  }
+
+  return template;
 }
 
 /**
@@ -116,14 +135,25 @@ function iniciarMqtt() {
   return client;
 }
 
-function publicarComando(comando) {
+function publicarComando(comando, deviceId) {
   return new Promise((resolve, reject) => {
     if (!client) {
       reject(new Error('Cliente MQTT nao iniciado'));
       return;
     }
 
-    client.publish(obterTopicoComando(), JSON.stringify(comando), (erro) => {
+    if (!deviceId) {
+      reject(new Error('device_id e obrigatorio para publicar comando'));
+      return;
+    }
+
+    const topicoComando = construirTopicoComando(deviceId);
+    if (topicoComando.includes('+') || topicoComando.includes('#')) {
+      reject(new Error('Topico de comando deve ser concreto, sem wildcard'));
+      return;
+    }
+
+    client.publish(topicoComando, JSON.stringify(comando), (erro) => {
       if (erro) {
         reject(erro);
         return;
@@ -137,5 +167,6 @@ function publicarComando(comando) {
 module.exports = {
   iniciarMqtt,
   publicarComando,
-  validarDispositivo
+  validarDispositivo,
+  construirTopicoComando
 };

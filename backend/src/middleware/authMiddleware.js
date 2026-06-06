@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'troque_este_seguro';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function requireAuth(req, res, next) {
   const auth = req.headers.authorization;
