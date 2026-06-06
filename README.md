@@ -1,21 +1,24 @@
 # Sistema de monitoramento alimentar para animais
 
-Projeto simples com backend em Node.js, banco MySQL, frontend React para web e app Expo para celular.
+Projeto com ESP32, broker MQTT, backend em Node.js, banco MySQL, frontend React para web e app Expo para celular.
 
 ## O que ele faz
 
-- Conecta em um broker MQTT
-- Assina o tópico `pet/alimentacao/peso`
-- Recebe mensagens JSON com `peso` e `timestamp`
-- Salva os dados no MySQL
+- Conecta em um broker MQTT.
+- Assina tópicos de peso no padrão `pet/+/peso`.
+- Valida `device_id` e `token` de cada ESP32 cadastrado.
+- Salva os dados no MySQL.
 - Expõe uma API REST com:
+  - `POST /auth/login`
   - `GET /pesos`
   - `GET /pesos/ultimo`
+  - `GET /dispositivo`
+  - `POST /dispositivo/regenerar-token`
   - `POST /comandos`
-- Calcula variação de peso e consumo estimado de forma simples
-- Mantém a publicação de comandos via MQTT para integrações internas
-- O dashboard abre com login e senha; a visualização de dados vem antes de qualquer tela administrativa
-- Se não houver registros, o sistema cria dados de exemplo para demonstração
+- Calcula variação de peso e consumo estimado de forma simples.
+- Publica comandos via MQTT para o dispositivo ativo do usuário.
+- Mostra primeiro a visualização dos dados, antes de telas administrativas.
+- Se não houver registros, cria dados de exemplo para demonstração.
 
 ## Sugestão de stack
 
@@ -23,9 +26,10 @@ Para esse caso, Node.js é a melhor opção aqui porque a integração com MQTT 
 
 ## Estrutura
 
-- `backend/` - API, MQTT e MySQL
-- `frontend/` - dashboard React para navegador
-- `mobile/` - app Expo Go para celular
+- `backend/` - API, MQTT e MySQL.
+- `frontend/` - dashboard React para navegador.
+- `mobile/` - app Expo Go para celular.
+- `ARQUITETURA_END_TO_END.md` - mapa consolidado do fluxo entre os dois projetos.
 
 ## Requisitos
 
@@ -134,7 +138,25 @@ Retorna o último peso registrado e a comparação com o registro anterior.
 
 Envia comando ao ESP32 via MQTT.
 
+Comportamento de `device_id`:
+
+- Se `device_id` for enviado no corpo, o backend usa esse dispositivo.
+- Se `device_id` nao for enviado, o backend usa o dispositivo ativo do usuario autenticado.
+- Se nao houver dispositivo ativo e `device_id` nao for informado, retorna erro `400`.
+
 Exemplo:
+
+```json
+{
+  "device_id": "esp32_pote_01",
+  "comando": "calibrar_sensor",
+  "dados": {
+    "offset": 0
+  }
+}
+```
+
+Exemplo sem `device_id` (usa dispositivo ativo do usuario):
 
 ```json
 {
@@ -145,14 +167,36 @@ Exemplo:
 }
 ```
 
+Resposta de sucesso (exemplo):
+
+```json
+{
+  "mensagem": "Comando enviado com sucesso",
+  "device_id": "esp32_pote_01",
+  "payload": {
+    "comando": "calibrar_sensor",
+    "dados": {
+      "offset": 0
+    },
+    "timestamp": "2026-05-27T15:00:00.000Z"
+  }
+}
+```
+
 ## Tópicos MQTT
 
-- Entrada de peso: `pet/alimentacao/peso`
-- Saída de comando: `pet/alimentacao/comando`
+- Entrada de peso: `pet/<device_id>/peso`
+- Saída de comando: `pet/<device_id>/comando`
+
+O backend assina `pet/+/peso` para aceitar múltiplos dispositivos, mas sempre valida o `device_id` no tópico e no payload.
 
 ## Observação importante
 
 Se o celular não conseguir acessar a API, libere a porta `3001` no firewall do computador e confira se a URL informada no app mobile está usando o IP correto da máquina, não `localhost`.
+
+## Arquitetura final
+
+Se quiser entender o fluxo completo entre ESP32, MQTT, backend, web e mobile, leia [ARQUITETURA_END_TO_END.md](ARQUITETURA_END_TO_END.md).
 
 ## Ideias para expandir depois
 
