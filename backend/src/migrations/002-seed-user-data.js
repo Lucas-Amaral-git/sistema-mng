@@ -1,12 +1,10 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
-const { pool } = require('../config/db');
 const bcrypt = require('bcryptjs');
 
-async function seedData() {
+async function seedData(pool) {
   try {
     console.log('🌱 Iniciando seed de dados para ambos os usuários...\n');
 
-    // Garantir que os usuários existem
     const usuariosDemo = [
       { username: 'teste', password: 'teste#123' },
       { username: 'cliente', password: 'cliente#123' }
@@ -17,13 +15,12 @@ async function seedData() {
       if (!rows.length) {
         const hash = await bcrypt.hash(usuario.password, 10);
         await pool.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)', [usuario.username, hash]);
-        console.log(`  ✓ Usuário criado: ${usuario.username} / ${usuario.password}`);
+        console.log(`  ✓ Usuário criado: ${usuario.username}`);
       } else {
         console.log(`  ✓ Usuário já existe: ${usuario.username}`);
       }
     }
 
-    // Recuperar IDs dos usuários
     const [[userTeste]] = await pool.execute('SELECT id FROM users WHERE username = ? LIMIT 1', ['teste']);
     const [[userCliente]] = await pool.execute('SELECT id FROM users WHERE username = ? LIMIT 1', ['cliente']);
     const testeId = userTeste?.id;
@@ -33,17 +30,14 @@ async function seedData() {
       throw new Error('Não foi possível recuperar IDs dos usuários');
     }
 
-    // Limpar registros antigos (para fazer refresh com dados novos)
     const [count] = await pool.execute('SELECT COUNT(*) as cnt FROM pesos');
     if ((count[0]?.cnt || 0) > 0) {
-      console.log('\n  → Limpando registros antigos de pesos...');
-      await pool.execute('DELETE FROM pesos');
-      console.log('  ✓ Registros antigos removidos');
+      console.log('\n  ℹ Já existem registros de pesos. Seed de amostra foi pulado.');
+      return;
     }
 
     const baseDate = new Date();
 
-    // Dados de exemplo para usuário 'teste'
     const exemplosTeste = [
       { peso: 5.00, diasAtras: 5, action: 'adicao' },
       { peso: 4.95, diasAtras: 4, action: 'reducao' },
@@ -52,7 +46,6 @@ async function seedData() {
       { peso: 5.10, diasAtras: 1, action: 'reducao' }
     ];
 
-    // Dados de exemplo para usuário 'cliente'
     const exemplosCliente = [
       { peso: 4.82, diasAtras: 5, action: 'estabilidade' },
       { peso: 4.78, diasAtras: 4, action: 'reducao' },
@@ -85,26 +78,19 @@ async function seedData() {
     }
     console.log(`  ✓ ${exemplosCliente.length} registros inseridos para "cliente"`);
 
-    // Mostrar dados inseridos
-    console.log('\n📊 Dados inseridos:\n');
-    const [allDados] = await pool.execute(`
-      SELECT u.username, p.id, p.peso, p.action, p.timestamp 
-      FROM pesos p 
-      JOIN users u ON p.user_id = u.id 
-      ORDER BY u.username, p.timestamp DESC
-    `);
-
-    for (const row of allDados) {
-      console.log(`  ${row.username.padEnd(10)} | ID: ${row.id} | Peso: ${row.peso}kg | Ação: ${row.action.padEnd(12)} | Data: ${row.timestamp.toLocaleString('pt-BR')}`);
-    }
-
     console.log('\n✅ Seed de dados concluído com sucesso!\n');
-    process.exit(0);
   } catch (error) {
     console.error('\n❌ Erro durante seed:', error.message);
-    console.error(error);
-    process.exit(1);
+    throw error;
   }
 }
 
-seedData();
+if (require.main === module) {
+  const { pool } = require('../config/db');
+  seedData(pool).catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
+
+module.exports = seedData;

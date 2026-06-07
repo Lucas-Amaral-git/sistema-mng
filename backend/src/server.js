@@ -10,7 +10,6 @@ function validarAmbiente() {
   const obrigatorias = [
     'MYSQL_HOST',
     'MYSQL_USER',
-    'MYSQL_PASSWORD',
     'MYSQL_DATABASE',
     'MQTT_URL',
     'JWT_SECRET'

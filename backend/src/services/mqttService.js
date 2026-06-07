@@ -1,12 +1,12 @@
 const mqtt = require('mqtt');
 
-const { salvarPeso } = require('./pesoService');
+const { salvarAlimentacao } = require('./alimentacaoService');
 const { pool } = require('../config/db');
 
 let client = null;
 
-function obterTopicoPeso() {
-  return process.env.MQTT_TOPIC_PESO || 'pet/+/peso';
+function obterTopicoAlimentacao() {
+  return process.env.MQTT_TOPIC_ALIMENTACAO || 'pet/+/alimentacao';
 }
 
 function obterTemplateTopicoComando() {
@@ -69,19 +69,19 @@ function iniciarMqtt() {
 
   client.on('connect', () => {
     console.log('Conectado ao broker MQTT');
-    client.subscribe(obterTopicoPeso(), (erro) => {
+    client.subscribe(obterTopicoAlimentacao(), (erro) => {
       if (erro) {
-        console.error('Erro ao assinar o topico de peso:', erro.message);
+        console.error('Erro ao assinar o topico de alimentacao:', erro.message);
       } else {
-        console.log('Inscrito em:', obterTopicoPeso());
+        console.log('Inscrito em:', obterTopicoAlimentacao());
       }
     });
   });
 
   client.on('message', async (topico, payload) => {
-    // Verificar se é um tópico de peso (pet/*/peso)
-    const regexPeso = /^pet\/([^\/]+)\/peso$/;
-    const match = topico.match(regexPeso);
+    // Verificar se é um tópico de alimentacao (pet/*/alimentacao)
+    const regexAlim = /^pet\/([^\/]+)\/alimentacao$/;
+    const match = topico.match(regexAlim);
 
     if (!match) {
       return;
@@ -91,7 +91,7 @@ function iniciarMqtt() {
       const mensagem = JSON.parse(payload.toString());
 
       // Validar campos obrigatórios
-      if (!mensagem.device_id || !mensagem.token || mensagem.peso === undefined || mensagem.peso === null) {
+      if (!mensagem.device_id || !mensagem.token || mensagem.distance_cm === undefined || mensagem.distance_cm === null) {
         console.warn(`⚠️  Mensagem inválida no tópico ${topico}:`, mensagem);
         return;
       }
@@ -110,17 +110,18 @@ function iniciarMqtt() {
         return;
       }
 
-      // Salvar o peso com o user_id validado
-      await salvarPeso({
-        peso: mensagem.peso,
+      // Salvar evento de alimentacao com o user_id validado
+      await salvarAlimentacao({
+        device_id: mensagem.device_id,
+        distance_cm: mensagem.distance_cm,
         timestamp: mensagem.timestamp,
-        userId: userId,
-        action: mensagem.action || 'estabilidade'
+        event: mensagem.event || null,
+        userId: userId
       });
 
-      console.log(`✓ Peso salvo (device_id=${mensagem.device_id}, user_id=${userId}):`, {
-        peso: mensagem.peso,
-        action: mensagem.action || 'estabilidade',
+      console.log(`✓ Alimentacao salva (device_id=${mensagem.device_id}, user_id=${userId}):`, {
+        distance_cm: mensagem.distance_cm,
+        event: mensagem.event || null,
         timestamp: mensagem.timestamp
       });
     } catch (erro) {
@@ -129,7 +130,7 @@ function iniciarMqtt() {
   });
 
   client.on('error', (erro) => {
-    console.error('Erro no MQTT:', erro.message);
+    console.error('Erro no MQTT:', erro);
   });
 
   return client;

@@ -7,7 +7,13 @@ function formatarData(valor) {
     return '-';
   }
 
-  return new Date(valor).toLocaleString('pt-BR');
+  return new Date(valor).toLocaleString('pt-BR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 function formatarNumero(valor) {
@@ -15,21 +21,38 @@ function formatarNumero(valor) {
     return '-';
   }
 
-  return Number(valor).toFixed(3).replace('.', ',');
+  return Number(valor).toFixed(2).replace('.', ',');
+}
+
+function calcularTempoApos(anteriorTimestamp, timestamp) {
+  if (!timestamp) {
+    return '-';
+  }
+
+  if (!anteriorTimestamp) {
+    return 'Primeira refeição';
+  }
+
+  const atual = new Date(timestamp);
+  const anterior = new Date(anteriorTimestamp);
+  const diffMs = atual.getTime() - anterior.getTime();
+  const horas = Math.floor(diffMs / 3600000);
+  const dias = Math.floor(horas / 24);
+
+  if (dias >= 1) {
+    return `${dias} dia${dias > 1 ? 's' : ''} sem comer`;
+  }
+
+  if (horas >= 1) {
+    return `${horas} hora${horas > 1 ? 's' : ''} sem comer`;
+  }
+
+  return 'menos de 1 hora sem comer';
 }
 
 export default function App() {
-  const [pesos, setPesos] = useState([]);
-  const [ultimoPeso, setUltimoPeso] = useState(null);
-  const [useGrams, setUseGrams] = useState(false);
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('useGrams');
-      if (stored !== null) setUseGrams(stored === '1');
-    } catch (e) {
-      // ignore
-    }
-  }, []);
+  const [alimentacoes, setAlimentacoes] = useState([]);
+  const [ultimaAlimentacao, setUltimaAlimentacao] = useState(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState(() => localStorage.getItem('token') || '');
@@ -50,13 +73,13 @@ export default function App() {
 
       const headers = { Authorization: `Bearer ${authToken}` };
       const [listaResposta, ultimoResposta] = await Promise.all([
-        fetch(`${API_URL}/pesos`, { headers }),
-        fetch(`${API_URL}/pesos/ultimo`, { headers })
+        fetch(`${API_URL}/alimentacoes`, { headers }),
+        fetch(`${API_URL}/alimentacoes/ultima`, { headers })
       ]);
 
       let lista = await listaResposta.json();
 
-      // fallback cliente: se backend não filtrou por usuário, filtre no frontend usando o token
+      // fallback cliente: se backend não filtrar por usuário
       try {
         const payload = JSON.parse(atob(authToken.split('.')[1]));
         const userId = payload?.sub;
@@ -65,51 +88,16 @@ export default function App() {
           lista = lista.filter((r) => String(r.user_id) === String(userId));
         }
       } catch (e) {
-        // ignore parsing errors
+        // ignore
       }
 
-      // recalcula métricas localmente para o subconjunto (mesma lógica do backend)
-      function numeroSeguro(val) {
-        return Number(Number(val).toFixed(3));
-      }
-
-      function calcularMetricasLocal(regs) {
-        let anterior = null;
-        return regs.map((registro) => {
-          const variacao = anterior ? numeroSeguro(registro.peso - anterior.peso) : null;
-          const consumoEstimado = anterior ? numeroSeguro(Math.max(0, anterior.peso - registro.peso)) : null;
-          anterior = registro;
-          return {
-            ...registro,
-            peso: numeroSeguro(registro.peso),
-            variacao_peso: variacao,
-            consumo_estimado: consumoEstimado
-          };
-        });
-      }
-
-      const processed = Array.isArray(lista) ? calcularMetricasLocal(lista) : [];
-      setPesos(processed);
+      setAlimentacoes(Array.isArray(lista) ? lista : []);
 
       if (ultimoResposta.ok) {
         const ultimoBody = await ultimoResposta.json();
-        // se ultimo não pertencer ao usuário (backend não filtrou), derive do array
-        const belongsToUser = (() => {
-          try {
-            const payload = JSON.parse(atob(authToken.split('.')[1]));
-            return String(ultimoBody.user_id) === String(payload?.sub);
-          } catch (e) {
-            return true;
-          }
-        })();
-
-        if (belongsToUser) {
-          setUltimoPeso(ultimoBody);
-        } else {
-          setUltimoPeso(processed.length ? processed[processed.length - 1] : null);
-        }
+        setUltimaAlimentacao(ultimoBody);
       } else {
-        setUltimoPeso(null);
+        setUltimaAlimentacao(null);
       }
 
       setStatus('Dados atualizados.');
@@ -128,8 +116,8 @@ export default function App() {
     if (autenticado) {
       carregarDados(token);
     } else {
-      setPesos([]);
-      setUltimoPeso(null);
+      setAlimentacoes([]);
+      setUltimaAlimentacao(null);
     }
   }, [autenticado, token]);
 
@@ -184,7 +172,7 @@ export default function App() {
             <p className="eyebrow">Monitoramento alimentar</p>
             <h1>Acesse o sistema</h1>
             <p className="subtitle">
-              Entre com seu usuário para ver os dados do alimento do bichinho.
+              Entre com seu usuário para ver os eventos de alimentação.
             </p>
           </div>
         </header>
@@ -230,56 +218,36 @@ export default function App() {
           <p className="eyebrow">Monitoramento alimentar</p>
           <h1>Dashboard do bichinho</h1>
           <p className="subtitle">
-            Dados em tempo simples para acompanhar peso, variação e consumo estimado.
+            Acompanhe quando o animal se alimentou e quantas vezes comeu no dia.
           </p>
         </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              className="ghost-button"
-              onClick={() => {
-                const nv = !useGrams;
-                setUseGrams(nv);
-                try {
-                  localStorage.setItem('useGrams', nv ? '1' : '0');
-                } catch (e) {}
-              }}
-              aria-pressed={useGrams}
-              title="Alternar unidade (kg / g)"
-            >
-              {useGrams ? 'g' : 'kg'}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="ghost-button" onClick={() => carregarDados(token)}>
+            Atualizar dados
+          </button>
+          {autenticado && (
+            <button className="ghost-button" onClick={doLogout}>
+              Sair
             </button>
-            <button className="ghost-button" onClick={() => carregarDados(token)}>
-              Atualizar dados
-            </button>
-            {autenticado && (
-              <button className="ghost-button" onClick={doLogout}>
-                Sair
-              </button>
-            )}
-          </div>
+          )}
+        </div>
       </header>
 
       <section className="cards">
         <article className="card highlight">
-          <span>Ultimo peso</span>
-          <strong>
-            {ultimoPeso ? (useGrams ? `${Math.round(ultimoPeso.peso * 1000)} g` : `${formatarNumero(ultimoPeso.peso)} kg`) : '-'}
-          </strong>
-          <small>{formatarData(ultimoPeso?.timestamp)}</small>
+          <span>Última alimentação</span>
+          <strong>{ultimaAlimentacao ? formatarData(ultimaAlimentacao.timestamp) : '-'}</strong>
+          <small>{ultimaAlimentacao?.event || 'Sem evento registrado'}</small>
         </article>
         <article className="card">
-          <span>Variacao</span>
-          <strong>
-            {ultimoPeso && ultimoPeso.variacao_peso != null ? (useGrams ? `${Math.round(ultimoPeso.variacao_peso * 1000)} g` : `${formatarNumero(ultimoPeso.variacao_peso)} kg`) : 'Início'}
-          </strong>
-          <small>Comparado ao registro anterior</small>
+          <span>Refeições hoje</span>
+          <strong>{ultimaAlimentacao ? `${ultimaAlimentacao.vezes_no_dia || 0}` : '-'}</strong>
+          <small>Contagem por dia</small>
         </article>
         <article className="card">
-          <span>Consumo estimado</span>
-          <strong>
-            {ultimoPeso && ultimoPeso.consumo_estimado != null ? (useGrams ? `${Math.round(ultimoPeso.consumo_estimado * 1000)} g` : `${formatarNumero(ultimoPeso.consumo_estimado)} kg`) : 'Início'}
-          </strong>
-          <small>Estimativa simples por reducao de peso</small>
+          <span>Último intervalo</span>
+          <strong>{ultimaAlimentacao?.tempo_sem_comer || '-'}</strong>
+          <small>Tempo desde a última refeição</small>
         </article>
       </section>
 
@@ -287,7 +255,7 @@ export default function App() {
         <div className="panel">
           <div className="panel-header">
             <h2>Registros</h2>
-            <span>{carregando ? 'Carregando...' : `${pesos.length} itens`}</span>
+            <span>{carregando ? 'Carregando...' : `${alimentacoes.length} itens`}</span>
           </div>
 
           <div className="table-wrapper">
@@ -295,45 +263,26 @@ export default function App() {
               <thead>
                 <tr>
                   <th>Data</th>
-                  <th>Peso</th>
-                  <th>Variacao</th>
-                  <th>Consumo</th>
+                  <th>Após</th>
                 </tr>
               </thead>
               <tbody>
-                {pesos.length === 0 ? (
+                {alimentacoes.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="empty-state">
+                    <td colSpan="2" className="empty-state">
                       Nenhum registro encontrado ainda.
                     </td>
                   </tr>
-                  ) : (
-                  [...pesos].slice().reverse().map((item) => {
-                    const color = item.action === 'adicao' ? '#0f9d58' : item.action === 'reducao' ? '#d93025' : 'inherit';
+                ) : (
+                  [...alimentacoes].slice().reverse().map((item, index, all) => {
+                    const previousItem = index < all.length - 1 ? all[index + 1] : null;
+                    const afterText = calcularTempoApos(previousItem?.timestamp, item.timestamp);
+
                     return (
-                        <tr key={item.id}>
-                          <td>{formatarData(item.timestamp)}</td>
-                          <td>{useGrams ? `${Math.round(item.peso * 1000)} g` : `${formatarNumero(item.peso)} kg`}</td>
-                          <td>
-                            {item.variacao_peso == null ? (
-                              <span style={{ fontStyle: 'italic', opacity: 0.9 }}>Início</span>
-                            ) : (
-                              useGrams ? `${Math.round(item.variacao_peso * 1000)} g` : `${formatarNumero(item.variacao_peso)} kg`
-                            )}
-                          </td>
-                          <td style={{ color }}>
-                            {item.consumo_estimado == null ? (
-                              <span style={{ fontStyle: 'italic', opacity: 0.9 }}>Início</span>
-                            ) : (
-                              useGrams ? `${Math.round(item.consumo_estimado * 1000)} g` : `${formatarNumero(item.consumo_estimado)} kg`
-                            )}
-                            {item.action ? (
-                              <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.85 }}>
-                                ({item.action})
-                              </span>
-                            ) : null}
-                          </td>
-                        </tr>
+                      <tr key={item.id}>
+                        <td>{formatarData(item.timestamp)}</td>
+                        <td>{afterText}</td>
+                      </tr>
                     );
                   })
                 )}
@@ -341,8 +290,6 @@ export default function App() {
             </table>
           </div>
         </div>
-
-        {/* painel 'Conta' removido conforme solicitado */}
       </section>
     </div>
   );

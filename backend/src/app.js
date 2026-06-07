@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 
-const pesoRoutes = require('./routes/pesoRoutes');
+const alimentacaoRoutes = require('./routes/alimentacaoRoutes');
 const comandoRoutes = require('./routes/comandoRoutes');
 const authRoutes = require('./routes/authRoutes');
 const dispositivoRoutes = require('./routes/dispositivoRoutes');
@@ -16,7 +16,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use(authRoutes);
-app.use(pesoRoutes);
+app.use(alimentacaoRoutes);
 app.use(comandoRoutes);
 app.use(dispositivoRoutes);
 

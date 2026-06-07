@@ -30,7 +30,47 @@ function formatDate(value) {
     return '-';
   }
 
-  return new Date(value).toLocaleString('pt-BR');
+  return new Date(value).toLocaleString('pt-BR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function formatElapsedTime(previousTimestamp, currentTimestamp) {
+  if (!currentTimestamp) {
+    return '-';
+  }
+
+  const current = new Date(currentTimestamp);
+  if (Number.isNaN(current.getTime())) {
+    return '-';
+  }
+
+  if (!previousTimestamp) {
+    return 'Primeira refeição';
+  }
+
+  const previous = new Date(previousTimestamp);
+  if (Number.isNaN(previous.getTime())) {
+    return '-';
+  }
+
+  const diffMs = current.getTime() - previous.getTime();
+  const hours = Math.floor(diffMs / 3600000);
+  const days = Math.floor(hours / 24);
+
+  if (days >= 1) {
+    return `${days} dia${days > 1 ? 's' : ''} sem comer`;
+  }
+
+  if (hours < 1) {
+    return 'menos de 1 hora sem comer';
+  }
+
+  return `${hours} hora${hours > 1 ? 's' : ''} sem comer`;
 }
 
 function resolveBackendUrl() {
@@ -51,8 +91,8 @@ function resolveBackendUrl() {
 }
 
 export default function App() {
-  const [pesos, setPesos] = useState([]);
-  const [ultimoPeso, setUltimoPeso] = useState(null);
+  const [alimentacoes, setAlimentacoes] = useState([]);
+  const [ultimaAlimentacao, setUltimaAlimentacao] = useState(null);
   const [token, setToken] = useState(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -75,17 +115,17 @@ export default function App() {
       const headers = { Authorization: `Bearer ${authToken}` };
 
       const [listaResposta, ultimoResposta] = await Promise.all([
-        fetch(`${url}/pesos`, { headers }),
-        fetch(`${url}/pesos/ultimo`, { headers })
+        fetch(`${url}/alimentacoes`, { headers }),
+        fetch(`${url}/alimentacoes/ultima`, { headers })
       ]);
 
       const lista = await listaResposta.json();
-      setPesos(Array.isArray(lista) ? lista : []);
+      setAlimentacoes(Array.isArray(lista) ? lista : []);
 
       if (ultimoResposta.ok) {
-        setUltimoPeso(await ultimoResposta.json());
+        setUltimaAlimentacao(await ultimoResposta.json());
       } else {
-        setUltimoPeso(null);
+        setUltimaAlimentacao(null);
       }
 
       setStatus('Dados atualizados.');
@@ -117,8 +157,8 @@ export default function App() {
     if (autenticado) {
       carregarDados(baseUrl, token);
     } else {
-      setPesos([]);
-      setUltimoPeso(null);
+      setAlimentacoes([]);
+      setUltimaAlimentacao(null);
     }
   }, [autenticado, baseUrl, token]);
 
@@ -243,7 +283,7 @@ export default function App() {
             <Text style={styles.badge}>Monitoramento alimentar</Text>
             <Text style={styles.title}>Dashboard do bichinho</Text>
             <Text style={styles.subtitle}>
-              Você está autenticado e pode acompanhar peso, variação e consumo estimado.
+              Você está autenticado e pode acompanhar quando o comedouro foi ativado.
             </Text>
           </View>
 
@@ -260,22 +300,27 @@ export default function App() {
 
           <View style={styles.cardsRow}>
             <View style={[styles.card, styles.cardAccent]}>
-              <Text style={styles.cardLabel}>Último peso</Text>
-              <Text style={styles.cardValue}>{formatNumber(ultimoPeso?.peso)} kg</Text>
-              <Text style={styles.cardHint}>{formatDate(ultimoPeso?.timestamp)}</Text>
+              <Text style={styles.cardLabel}>Última alimentação</Text>
+              <Text style={styles.cardValue}>{formatDate(ultimaAlimentacao?.timestamp)}</Text>
+              <Text style={styles.cardHint}>{ultimaAlimentacao?.event || 'Sem evento'}</Text>
             </View>
             <View style={styles.card}>
-              <Text style={styles.cardLabel}>Variação</Text>
-              <Text style={styles.cardValue}>{formatNumber(ultimoPeso?.variacao_peso)} kg</Text>
-              <Text style={styles.cardHint}>Comparado ao registro anterior</Text>
+              <Text style={styles.cardLabel}>Refeições hoje</Text>
+              <Text style={styles.cardValue}>{ultimaAlimentacao?.vezes_no_dia ?? '-'}</Text>
+              <Text style={styles.cardHint}>Total de eventos no dia</Text>
             </View>
           </View>
 
           <View style={styles.cardsRow}>
             <View style={styles.card}>
-              <Text style={styles.cardLabel}>Consumo estimado</Text>
-              <Text style={styles.cardValue}>{formatNumber(ultimoPeso?.consumo_estimado)} kg</Text>
-              <Text style={styles.cardHint}>Estimativa simples</Text>
+              <Text style={styles.cardLabel}>Desde a última</Text>
+              <Text style={styles.cardValueSmall}>
+                {formatElapsedTime(
+                  alimentacoes.length > 1 ? alimentacoes[alimentacoes.length - 2]?.timestamp : null,
+                  ultimaAlimentacao?.timestamp
+                )}
+              </Text>
+              <Text style={styles.cardHint}>Tempo entre refeições</Text>
             </View>
             <View style={styles.card}>
               <Text style={styles.cardLabel}>Status</Text>
@@ -287,7 +332,7 @@ export default function App() {
           <View style={styles.panel}>
             <View style={styles.listHeader}>
               <Text style={styles.sectionTitle}>Registros</Text>
-              <Text style={styles.listCount}>{pesos.length} itens</Text>
+              <Text style={styles.listCount}>{alimentacoes.length} itens</Text>
             </View>
 
             {carregando ? (
@@ -296,24 +341,27 @@ export default function App() {
               </View>
             ) : (
               <FlatList
-                data={pesos}
+                data={alimentacoes}
                 keyExtractor={(item) => String(item.id)}
                 scrollEnabled={false}
                 ListEmptyComponent={
                   <Text style={styles.emptyText}>Nenhum registro recebido ainda.</Text>
                 }
-                renderItem={({ item }) => (
-                  <View style={styles.listItem}>
-                    <View>
-                      <Text style={styles.listDate}>{formatDate(item.timestamp)}</Text>
-                      <Text style={styles.listMeta}>Var: {formatNumber(item.variacao_peso)} kg</Text>
+                renderItem={({ item, index }) => {
+                  const tempoSemComer = formatElapsedTime(
+                    index > 0 ? alimentacoes[index - 1]?.timestamp : null,
+                    item.timestamp
+                  );
+
+                  return (
+                    <View style={styles.listItem}>
+                      <View>
+                        <Text style={styles.listDate}>{formatDate(item.timestamp)}</Text>
+                        <Text style={styles.listMeta}>{tempoSemComer}</Text>
+                      </View>
                     </View>
-                    <View style={styles.listRight}>
-                      <Text style={styles.listPeso}>{formatNumber(item.peso)} kg</Text>
-                      <Text style={styles.listMeta}>Consumo: {formatNumber(item.consumo_estimado)} kg</Text>
-                    </View>
-                  </View>
-                )}
+                  );
+                }}
               />
             )}
           </View>

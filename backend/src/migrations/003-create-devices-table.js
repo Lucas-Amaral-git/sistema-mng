@@ -1,12 +1,10 @@
-require('dotenv').config();
-const { pool } = require('../config/db');
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 const crypto = require('crypto');
 
-async function migrate() {
+async function migrate(pool) {
   try {
     console.log('🔄 Iniciando migração: criar tabela devices...');
 
-    // Verificar se a tabela já existe
     const [tables] = await pool.execute(
       `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'devices'`
     );
@@ -33,7 +31,6 @@ async function migrate() {
       console.log('  ✓ Tabela devices já existe');
     }
 
-    // Seedar dispositivos para os usuários de teste se não existirem
     const [users] = await pool.execute('SELECT id, username FROM users WHERE username IN (?, ?)', ['teste', 'cliente']);
 
     for (const user of users) {
@@ -62,10 +59,16 @@ async function migrate() {
     console.log('\n✅ Migração concluída com sucesso!');
   } catch (erro) {
     console.error('\n❌ Erro durante a migração:', erro.message);
-    process.exit(1);
-  } finally {
-    await pool.end();
+    throw erro;
   }
 }
 
-migrate();
+if (require.main === module) {
+  const { pool } = require('../config/db');
+  migrate(pool).catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
+
+module.exports = migrate;

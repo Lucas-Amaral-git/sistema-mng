@@ -1,4 +1,7 @@
+const fs = require('fs');
+const path = require('path');
 const mysql = require('mysql2/promise');
+const bcrypt = require('bcryptjs');
 
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST,
@@ -11,9 +14,7 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-const bcrypt = require('bcryptjs');
-
-async function initDatabase() {
+async function ensureBaseSchema() {
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS users (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -24,17 +25,53 @@ async function initDatabase() {
   `);
 
   await pool.execute(`
-    CREATE TABLE IF NOT EXISTS pesos (
+    CREATE TABLE IF NOT EXISTS alimentacoes (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      peso DECIMAL(10, 3) NOT NULL,
+      device_id VARCHAR(255) NOT NULL,
+      distance_cm DECIMAL(8,3) NULL,
+      event VARCHAR(100) NULL,
       timestamp DATETIME NOT NULL,
-      action VARCHAR(20) DEFAULT 'estabilidade',
       user_id INT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_pesos_user_timestamp (user_id, timestamp),
-      CONSTRAINT fk_pesos_user FOREIGN KEY (user_id) REFERENCES users(id)
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+}
+
+async function runMigrations() {
+  const migrationsDir = path.resolve(__dirname, '../migrations');
+  const files = fs.readdirSync(migrationsDir)
+    .filter((file) => file.endsWith('.js'))
+    .sort();
+
+  for (const file of files) {
+    const migrationPath = path.join(migrationsDir, file);
+    console.log(`Executando migration ${file}...`);
+    const migrationModule = require(migrationPath);
+
+    // Suporta várias formas de migrations: export default function, função direta,
+    // ou arquivos que chamam migrate() ao serem requeridos. Tentamos executar
+    // a função exportada quando disponível, caso contrário assumimos que o
+    // arquivo já executou sua lógica ao ser requerido.
+    try {
+      if (typeof migrationModule === 'function') {
+        await migrationModule(pool);
+      } else if (typeof migrationModule.default === 'function') {
+        await migrationModule.default(pool);
+      } else if (typeof migrationModule.migrate === 'function') {
+        await migrationModule.migrate(pool);
+      } else {
+        // migration may have executed on require(); continue
+      }
+    } catch (e) {
+      console.error(`Erro executando migration ${file}:`, e.message);
+      throw e;
+    }
+  }
+}
+
+async function initDatabase() {
+  await ensureBaseSchema();
+  await runMigrations();
 
   const usuariosDemo = [
     { username: 'teste', password: 'teste#123' },
@@ -57,43 +94,7 @@ async function initDatabase() {
   const testeId = userTeste?.id || null;
   const clienteId = userCliente?.id || null;
 
-  const [pesoRows] = await pool.execute('SELECT COUNT(*) AS total FROM pesos');
-
-  if ((pesoRows[0]?.total || 0) === 0) {
-    const baseDate = new Date();
-
-    const exemplosTeste = [
-      { peso: 5.00, diasAtras: 5, action: 'adicao' },
-      { peso: 4.95, diasAtras: 4, action: 'reducao' },
-      { peso: 4.95, diasAtras: 3, action: 'estabilidade' },
-      { peso: 5.20, diasAtras: 2, action: 'adicao' },
-      { peso: 5.10, diasAtras: 1, action: 'reducao' }
-    ];
-
-    const exemplosCliente = [
-      { peso: 4.82, diasAtras: 5, action: 'estabilidade' },
-      { peso: 4.78, diasAtras: 4, action: 'reducao' },
-      { peso: 4.70, diasAtras: 3, action: 'reducao' },
-      { peso: 4.75, diasAtras: 2, action: 'adicao' },
-      { peso: 4.75, diasAtras: 1, action: 'estabilidade' }
-    ];
-
-    for (const exemplo of exemplosTeste) {
-      const data = new Date(baseDate);
-      data.setDate(baseDate.getDate() - exemplo.diasAtras);
-      data.setHours(8, 30, 0, 0);
-      await pool.execute('INSERT INTO pesos (peso, timestamp, action, user_id) VALUES (?, ?, ?, ?)', [exemplo.peso, data, exemplo.action, testeId]);
-    }
-
-    for (const exemplo of exemplosCliente) {
-      const data = new Date(baseDate);
-      data.setDate(baseDate.getDate() - exemplo.diasAtras);
-      data.setHours(9, 15, 0, 0);
-      await pool.execute('INSERT INTO pesos (peso, timestamp, action, user_id) VALUES (?, ?, ?, ?)', [exemplo.peso, data, exemplo.action, clienteId]);
-    }
-
-    console.log('Registros de exemplo inseridos na tabela pesos (por usuário, com action)');
-  }
+  // As seeds de alimentacoes são tratadas pelas migrations em src/migrations
 }
 
 module.exports = {
