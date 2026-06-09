@@ -45,21 +45,21 @@ O sistema implementa segurança em duas camadas:
 
 ### 1. Autenticação no Broker MQTT
 
-Cada cliente MQTT (backend e ESP32) se conecta com credenciais:
+Cada cliente MQTT (backend e ESP) se conecta com credenciais:
 
 ```
 Backend:
 	- username: backend_system (definido em MQTT_USERNAME)
 	- senha: senha_backend (definido em MQTT_PASSWORD)
 
-ESP32:
-	- username: esp32_device
+ESP:
+	- username: esp_device
 	- senha: senha_dispositivo
 ```
 
 ### 2. Validação de Mensagens no Backend
 
-Cada mensagem MQTT publicada pelo ESP32 deve conter:
+Cada mensagem MQTT publicada pelo ESP deve conter:
 
 - **device_id**: identificador único do dispositivo
 - **token**: chave secreta associada ao dispositivo
@@ -73,7 +73,7 @@ Cada mensagem MQTT publicada pelo ESP32 deve conter:
 **Payload** (JSON):
 ```json
 {
-	"device_id": "esp32_teste",
+	"device_id": "esp_teste",
 	"token": "TOKEN_SECRETO_AQUI",
 	"peso": 325.4,
 	"action": "reducao",
@@ -103,7 +103,7 @@ Header: Authorization: Bearer <TOKEN_JWT>
 Resposta:
 ```json
 {
-	"device_id": "esp32_teste",
+	"device_id": "esp_teste",
 	"token": "abc123xyz...",
 	"created_at": "2026-05-11T10:00:00Z"
 }
@@ -124,21 +124,21 @@ Resposta:
 }
 ```
 
-## Configuração do ESP32
+## Configuração do ESP
 
 1. Faça login no web para obter suas credenciais:
 	 ```
 	 GET /dispositivo (com JWT no header)
 	 ```
 
-2. Configure o ESP32 com:
+2. Configure o ESP com:
 	 - MQTT Broker: `seu_broker_ip:porta`
-	 - MQTT Username: `esp32_device`
+	 - MQTT Username: `esp_device`
 	 - MQTT Password: `senha_dispositivo`
 	 - Device ID: (obtido do endpoint acima)
 	 - Token: (obtido do endpoint acima)
 
-3. No código do ESP32, publique a cada leitura:
+3. No código do ESP, publique a cada leitura:
 	 ```cpp
 	 // Pseudocódigo
 	 String payload = "{\"device_id\":\"" + DEVICE_ID + "\",\"token\":\"" + TOKEN + "\",\"peso\":" + weight + ",\"timestamp\":\"" + timestamp + "\"}";
@@ -152,8 +152,8 @@ Credenciais de teste:
 
 Dispositivos de teste (gerados automaticamente):
 
-- device_id: `esp32_teste` (owner: teste)
-- device_id: `esp32_cliente` (owner: cliente)
+- device_id: `esp_teste` (owner: teste)
+- device_id: `esp_cliente` (owner: cliente)
 - tokens: disponíveis via `GET /dispositivo`
 
 Se quiser abrir só no PC, use apenas:

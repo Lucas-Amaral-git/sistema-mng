@@ -1,12 +1,12 @@
 # Sistema de monitoramento alimentar para animais
 
-Projeto com ESP32, broker MQTT, backend em Node.js, banco MySQL, frontend React para web e app Expo para celular.
+Projeto com ESP, broker MQTT, backend em Node.js, banco MySQL, frontend React para web e app Expo para celular.
 
 ## O que ele faz
 
 - Conecta em um broker MQTT.
 - Assina tópicos de peso no padrão `pet/+/peso`.
-- Valida `device_id` e `token` de cada ESP32 cadastrado.
+- Valida `device_id` e `token` de cada ESP cadastrado.
 - Salva os dados no MySQL.
 - Expõe uma API REST com:
   - `POST /auth/login`
@@ -136,7 +136,7 @@ Retorna o último peso registrado e a comparação com o registro anterior.
 
 ### `POST /comandos`
 
-Envia comando ao ESP32 via MQTT.
+Envia comando ao ESP via MQTT.
 
 Comportamento de `device_id`:
 
@@ -148,7 +148,7 @@ Exemplo:
 
 ```json
 {
-  "device_id": "esp32_pote_01",
+  "device_id": "esp_pote_01",
   "comando": "calibrar_sensor",
   "dados": {
     "offset": 0
@@ -172,7 +172,7 @@ Resposta de sucesso (exemplo):
 ```json
 {
   "mensagem": "Comando enviado com sucesso",
-  "device_id": "esp32_pote_01",
+  "device_id": "esp_pote_01",
   "payload": {
     "comando": "calibrar_sensor",
     "dados": {
@@ -196,7 +196,7 @@ Se o celular não conseguir acessar a API, libere a porta `3001` no firewall do 
 
 ## Arquitetura final
 
-Se quiser entender o fluxo completo entre ESP32, MQTT, backend, web e mobile, leia [ARQUITETURA_END_TO_END.md](ARQUITETURA_END_TO_END.md).
+Se quiser entender o fluxo completo entre ESP, MQTT, backend, web e mobile, leia [ARQUITETURA_END_TO_END.md](ARQUITETURA_END_TO_END.md).
 
 ## Ideias para expandir depois
 

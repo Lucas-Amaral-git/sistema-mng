@@ -57,6 +57,9 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [token, setToken] = useState(() => localStorage.getItem('token') || '');
   const [status, setStatus] = useState('');
+  const [device, setDevice] = useState(null);
+  const [deviceStatus, setDeviceStatus] = useState('');
+  const [regenerandoToken, setRegenerandoToken] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [authPronto, setAuthPronto] = useState(false);
 
@@ -108,6 +111,79 @@ export default function App() {
     }
   }
 
+  async function carregarDispositivo(authToken = token) {
+    if (!authToken) {
+      return;
+    }
+
+    try {
+      setDeviceStatus('Carregando dispositivo...');
+      const resposta = await fetch(`${API_URL}/dispositivo`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+
+      if (!resposta.ok) {
+        if (resposta.status === 404) {
+          setDevice(null);
+          setDeviceStatus('Nenhum dispositivo configurado para este usuário.');
+          return;
+        }
+        throw new Error('Falha ao carregar dispositivo');
+      }
+
+      const body = await resposta.json();
+      setDevice(body);
+      setDeviceStatus('Dispositivo carregado.');
+    } catch (erro) {
+      console.error('Erro ao carregar dispositivo:', erro);
+      setDevice(null);
+      setDeviceStatus(erro.message || 'Erro ao carregar dispositivo');
+    }
+  }
+
+  async function copiarParaClipboard(valor, nome) {
+    if (!valor) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(valor);
+      setDeviceStatus(`${nome} copiado.`);
+    } catch {
+      setDeviceStatus('Erro ao copiar para a área de transferência.');
+    }
+  }
+
+  async function handleRegenerarToken(evento) {
+    evento.preventDefault();
+    if (!token) {
+      return;
+    }
+
+    try {
+      setRegenerandoToken(true);
+      setDeviceStatus('Regenerando token...');
+
+      const resposta = await fetch(`${API_URL}/dispositivo/regenerar-token`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const body = await resposta.json();
+
+      if (!resposta.ok) {
+        throw new Error(body.mensagem || 'Falha ao regenerar token');
+      }
+
+      setDevice((prev) => (prev ? { ...prev, token: body.token } : prev));
+      setDeviceStatus('Token regenerado com sucesso.');
+    } catch (erro) {
+      setDeviceStatus(erro.message || 'Erro ao regenerar token');
+    } finally {
+      setRegenerandoToken(false);
+    }
+  }
+
   useEffect(() => {
     setAuthPronto(true);
   }, []);
@@ -115,9 +191,12 @@ export default function App() {
   useEffect(() => {
     if (autenticado) {
       carregarDados(token);
+      carregarDispositivo(token);
     } else {
       setAlimentacoes([]);
       setUltimaAlimentacao(null);
+      setDevice(null);
+      setDeviceStatus('');
     }
   }, [autenticado, token]);
 
@@ -157,6 +236,8 @@ export default function App() {
     setToken('');
     setUsername('');
     setPassword('');
+    setDevice(null);
+    setDeviceStatus('');
     setStatus('Desconectado');
   }
 
@@ -251,8 +332,8 @@ export default function App() {
         </article>
       </section>
 
-      <section className="content-grid" style={{ display: 'flex', justifyContent: 'center', gap: 24 }}>
-        <div className="panel">
+      <section className="content-grid" style={{ display: 'flex', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
+        <div className="panel" style={{ flex: '1 1 620px' }}>
           <div className="panel-header">
             <h2>Registros</h2>
             <span>{carregando ? 'Carregando...' : `${alimentacoes.length} itens`}</span>
@@ -289,6 +370,58 @@ export default function App() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div className="panel" style={{ flex: '1 1 320px' }}>
+          <div className="panel-header">
+            <h2>Dispositivo ESP</h2>
+            <span>{deviceStatus || 'Use o token no firmware do ESP8266'}</span>
+          </div>
+
+          {device ? (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div>
+                <strong>device_id</strong>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+                  <code style={{ padding: '8px 10px', borderRadius: 12, background: '#f4f7f9', width: '100%', overflowX: 'auto' }}>
+                    {device.device_id}
+                  </code>
+                  <button className="ghost-button" onClick={() => copiarParaClipboard(device.device_id, 'device_id')}>
+                    Copiar
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <strong>token</strong>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+                  <code style={{ padding: '8px 10px', borderRadius: 12, background: '#f4f7f9', width: '100%', overflowX: 'auto' }}>
+                    {device.token}
+                  </code>
+                  <button className="ghost-button" onClick={() => copiarParaClipboard(device.token, 'Token')}>
+                    Copiar
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <strong>Cadastrado em</strong>
+                <p style={{ margin: '8px 0 0', color: 'var(--muted)' }}>{formatarData(device.created_at)}</p>
+              </div>
+
+              <button className="primary-button" type="button" onClick={handleRegenerarToken} disabled={regenerandoToken}>
+                {regenerandoToken ? 'Regenerando...' : 'Regenerar token'}
+              </button>
+
+              <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.95rem' }}>
+                Use este token no firmware do ESP8266 ao enviar mensagens MQTT para autenticação.
+              </p>
+            </div>
+          ) : (
+            <p style={{ margin: 0, color: 'var(--muted)' }}>
+              Nenhum dispositivo cadastrado. Entre em contato com o administrador ou crie o registro no backend.
+            </p>
+          )}
         </div>
       </section>
     </div>

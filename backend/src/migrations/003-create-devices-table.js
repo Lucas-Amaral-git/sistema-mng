@@ -41,7 +41,7 @@ async function migrate(pool) {
 
       if (existentes.length === 0) {
         console.log(`  → Criando dispositivo padrão para "${user.username}"...`);
-        const deviceId = `esp32_${user.username}`;
+        const deviceId = `esp_${user.username}`;
         const token = crypto.randomBytes(32).toString('hex');
 
         await pool.execute(
