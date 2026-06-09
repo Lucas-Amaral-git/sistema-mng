@@ -31,7 +31,7 @@ async function migrate(pool) {
       console.log('  ✓ Tabela devices já existe');
     }
 
-    const [users] = await pool.execute('SELECT id, username FROM users WHERE username IN (?, ?)', ['teste', 'cliente']);
+    const [users] = await pool.execute('SELECT id, username FROM users WHERE username IN (?, ?, ?, ?)', ['teste', 'cliente', 'aula', 'amendoim']);
 
     for (const user of users) {
       const [existentes] = await pool.execute(

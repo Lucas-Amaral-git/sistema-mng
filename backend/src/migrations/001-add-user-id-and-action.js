@@ -89,7 +89,9 @@ async function migrate() {
       // Garantir que os usuários existem
       const usuariosDemo = [
         { username: 'teste', password: 'teste#123' },
-        { username: 'cliente', password: 'cliente#123' }
+        { username: 'cliente', password: 'cliente#123' },
+        { username: 'aula', password: 'aula#123' },
+        { username: 'amendoim', password: 'amendoim#123' }
       ];
 
       for (const usuario of usuariosDemo) {
