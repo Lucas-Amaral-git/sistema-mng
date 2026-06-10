@@ -147,10 +147,29 @@ export default function App() {
     }
 
     try {
-      await navigator.clipboard.writeText(valor);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(valor);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = valor;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-9999px';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        if (!successful) {
+          throw new Error('Falha ao copiar via fallback');
+        }
+      }
+
       setDeviceStatus(`${nome} copiado.`);
-    } catch {
-      setDeviceStatus('Erro ao copiar para a área de transferência.');
+    } catch (error) {
+      console.error('Erro ao copiar para a área de transferência:', error);
+      setDeviceStatus('Erro ao copiar para a área de transferência. Use HTTPS ou navegue em localhost.');
     }
   }
 
