@@ -45,10 +45,17 @@ button {
 
 .hero {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 24px;
+}
+
+.hero-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
 }
 
 .eyebrow {
@@ -232,6 +239,12 @@ th {
 
   .hero {
     display: grid;
+    text-align: center;
+  }
+
+  .hero h1,
+  .subtitle {
+    text-align: center;
   }
 
   .hero h1 {

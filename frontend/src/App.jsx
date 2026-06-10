@@ -294,7 +294,7 @@ export default function App() {
 
   return (
     <div className="page" style={{ maxWidth: 980, margin: '0 auto', padding: 16 }}>
-      <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header className="hero">
         <div>
           <p className="eyebrow">Monitoramento alimentar</p>
           <h1>Dashboard do bichinho</h1>
@@ -302,10 +302,7 @@ export default function App() {
             Acompanhe quando o animal se alimentou e quantas vezes comeu no dia.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="ghost-button" onClick={() => carregarDados(token)}>
-            Atualizar dados
-          </button>
+        <div className="hero-actions">
           {autenticado && (
             <button className="ghost-button" onClick={doLogout}>
               Sair
