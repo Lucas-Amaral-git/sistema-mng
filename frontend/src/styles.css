@@ -254,4 +254,55 @@ th {
   td {
     padding-inline: 8px;
   }
+
+  /* Allow table cells to wrap on small screens to avoid horizontal scroll */
+  th,
+  td {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  /* Slightly smaller table text on very small screens */
+  table {
+    font-size: 0.95rem;
+  }
+
+  /* Force content grid to stack vertically on small screens (override inline flex) */
+  .content-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+  }
+
+  /* Panels should take full width and not rely on inline flex-basis */
+  .content-grid > .panel {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+
+  /* Make device rows stack so code + buttons don't squeeze horizontally */
+  .panel > div {
+    display: block !important;
+  }
+
+  .panel > div > div {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+  }
+
+  /* Make inline code blocks wrap and buttons full-width for easier tapping */
+  .panel code {
+    width: 100% !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+
+  .panel .ghost-button,
+  .panel .primary-button {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
 }
